@@ -18,7 +18,7 @@ Public Sub SendToJoplin()
                 
         With CreateObject("MSXML2.XMLHTTP")
             .Open "POST", sURLNotes, False
-            .Send "{ ""title"": """ & objItem.ConversationTopic & """" _
+            .Send "{ ""is_todo"": 1, ""title"": """ & objItem.ConversationTopic & attachmentName & """" _
             & ", ""parent_id"": """ & sFolderID & """" _
             & ", ""body_html"": """ & sEscapedBody & """" _
             & " }"
