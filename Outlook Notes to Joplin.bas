@@ -166,44 +166,6 @@ Private Function ParseJsonResponse(sJSONString As String, sItem As String, sOp A
     End If
 End Function
 
-Private Function GetFoldersFromJoplin(sToken As String, sURL As String)
-    'Input token, url
-    'Output folder id
-    
-    Dim sJSONString, sMessage, sTitle, sDefault, sMyChoice As String
-    Dim vJSON As Variant
-    Dim sState As String
-    Dim aData(), aHeader()
-    Dim i As Integer
-
-    sURL = sURL & "/folders?token=" & sToken
-    
-    'Get folders list
-    With CreateObject("MSXML2.XMLHTTP")
-        .Open "GET", sURL, False
-        .Send
-        Do Until .ReadyState = 4: DoEvents: Loop
-            sJSONString = .ResponseText
-    End With
-        
-'    Debug.Print sJSONString
-    
-    'Parse JSON response
-    JSON.Parse sJSONString, vJSON, sState
-    JSON.ToArray vJSON, aData(), aHeader()
-    
-    'Dsiplay a choices of folders
-    'Set prompt
-    sMessage = "Enter a value between " & LBound(aData) & " To " & UBound(aData)
-    For i = LBound(aData) To UBound(aData)
-        sMessage = sMessage & Chr(10) & i & " " & aData(i, 2)
-    Next i
-    sTitle = "Choose Joplin folder..."    'Set title
-    sDefault = "1"    'Set default
-    sMyChoice = InputBox(sMessage, sTitle, sDefault)
-    GetFoldersFromJoplin = aData(sMyChoice, 0)
-End Function
-
 Private Function ToUnixTime(ByVal dt As Date) As LongLong
     ToUnixTime = DateDiff("s", "1/1/1970 00:00:00", dt) * 1000
 '    Debug.Print ToUnixTime
