@@ -15,6 +15,9 @@ Public Sub SendToJoplin()
     Dim nError As Integer
     Dim sPost As String
     Dim sTagID As String
+    Dim aCategories() As String
+    Dim i As Integer
+    Dim sTaggedID As String
     
     sFolderName = "Outlook Notes"
     sToken = "REPLACE ME WITH YOUR TOKEN"
@@ -33,38 +36,32 @@ Public Sub SendToJoplin()
             & ", ""user_updated_time"": """ & ToUnixTime(objItem.LastModificationTime) & """" _
             & ", ""body"": """ & EscapeBody(objItem.Body) & """" _
             & " }"
-        ' Debug.Print sPost
 
-        With CreateObject("MSXML2.XMLHTTP")
-            .Open "POST", sURL & "/notes?token=" & sToken, False
-            .Send sPost
-            Do Until .ReadyState = 4: DoEvents: Loop
-                sJSONString = .ResponseText
-        End With
+        sJSONString = HttpRequest(sURL & "/notes?token=" & sToken, "POST", sPost)
         sNoteID = ParseJsonResponse(sJSONString, "id", "AddNote")
         If sNoteID <> "" Then
-'            Debug.Print sJSONString
+            Debug.Print sJSONString
             nExport = nExport + 1
         Else
             nError = nError + 1
         End If
     
         If objItem.Categories <> "" And sNoteID <> "" Then
-            sTagID = CreateJoplinItem("tag", objItem.Categories, sURL, sToken)
-            If sTagID <> "" Then
-                With CreateObject("MSXML2.XMLHTTP")
-                    .Open "POST", sURL & "/tags/" & sTagID & "/notes?token=" & sToken, False
-                    .Send "{ ""id"": """ & sNoteID & """ }"
-                    Do Until .ReadyState = 4: DoEvents: Loop
-                        sJSONString = .ResponseText
-                End With
-                sNoteID = ParseJsonResponse(sJSONString, "id", "AddNote")
-                If sNoteID <> "" Then
-'                    Debug.Print sJSONString
-                Else
+            aCategories = Split(objItem.Categories, ", ")
+            For i = LBound(aCategories, 1) To UBound(aCategories, 1)
+                sTagID = CreateJoplinItem("tag", aCategories(i), sURL, sToken)
+                If sTagID = "" Then
                     nError = nError + 1
+                Else
+                    sJSONString = HttpRequest(sURL & "/tags/" & sTagID & "/notes?token=" & sToken, "POST", "{ ""id"": """ & sNoteID & """ }")
+                    sTaggedID = ParseJsonResponse(sJSONString, "id", "AddNote")
+                    If sTaggedID <> "" Then
+                        Debug.Print sJSONString
+                    Else
+                        nError = nError + 1
+                    End If
                 End If
-            End If
+            Next
         End If
     Next
     sMsg = nExport & " notes exported to Joplin folder """ & sFolderName & """"
@@ -91,25 +88,16 @@ Private Function FindJoplinItem(sType As String, sFolderName As String, sURL As 
     Dim sJSONString As String
     Dim sFolderID As String
     Dim aItems As Variant
-    Dim sReq As String
     Dim i As Integer
     Dim page As Integer
 
     page = 1
     Do
-        ' Some folder names can have \r appended to them, so we search for everything starting
-        ' with our desired name
-        sReq = sURL & "/search?query=" & sFolderName & "*&type=" & sType & "&fields=id,title&page=" & page & "&token=" & sToken
-        ' ... or could do this and return all folders
-        ' sReq = sURL & "/" & sType & "s?fields=id,title&token=" & sToken
-        With CreateObject("MSXML2.XMLHTTP")
-            .Open "GET", sReq, False
-            .Send
-            Do Until .ReadyState = 4: DoEvents: Loop
-                sJSONString = .ResponseText
-        End With
+        ' Some folder names can have \r appended to them, so we search for everything starting with our desired name
+        sJSONString = HttpRequest(sURL & "/search?query=" & sFolderName & "*&type=" & sType & "&fields=id,title&page=" & page & "&token=" & sToken)
+        ' or could do this and return all folders:
+        '   sJSONString = HttpRequest(sURL & "/" & sType & "s?fields=id,title&token=" & sToken)
         page = page + 1
-'        Debug.Print sJSONString & " <- " & sReq
         aItems = ParseJsonResponse(sJSONString, "items", "FindJoplinItem")
     
         If IsArray(aItems) Then
@@ -117,8 +105,8 @@ Private Function FindJoplinItem(sType As String, sFolderName As String, sURL As 
                 If VarType(aItems(i)) = vbObject Then
                     If aItems(i).Exists("id") And aItems(i).Exists("title") Then
 '                        Debug.Print aItems(i).item("id") & " " & aItems(i).item("title")
-                        If aItems(i).item("title") = sFolderName Then
-                            FindJoplinItem = aItems(0).item("id")
+                        If LCase(aItems(i).item("title")) = LCase(sFolderName) Then
+                            FindJoplinItem = aItems(i).item("id")
                             Exit Function
                         End If
                     End If
@@ -135,13 +123,7 @@ Private Function CreateJoplinItem(sType As String, sFolderName As String, sURL A
     CreateJoplinItem = FindJoplinItem(sType, sFolderName, sURL, sToken)
     If CreateJoplinItem <> "" Then Exit Function
 
-    With CreateObject("MSXML2.XMLHTTP")
-        .Open "POST", sURL & "/" & sType & "s?token=" & sToken, False
-        .Send "{ ""title"": """ & sFolderName & """ }"
-        Do Until .ReadyState = 4: DoEvents: Loop
-            sJSONString = .ResponseText
-    End With
-'    Debug.Print sJSONString
+    sJSONString = HttpRequest(sURL & "/" & sType & "s?token=" & sToken, "POST", "{ ""title"": """ & sFolderName & """ }")
     CreateJoplinItem = ParseJsonResponse(sJSONString, "id", "CreateJoplinItem")
 End Function
 
@@ -164,6 +146,21 @@ Private Function ParseJsonResponse(sJSONString As String, sItem As String, sOp A
     If vJSON.Exists("has_more") Then
         has_more = vJSON.item("has_more")
     End If
+End Function
+
+Private Function HttpRequest(sURL As String, Optional sMethod As String = "GET", Optional sPost As String = "") As String
+    Dim sResponse As String
+    
+    With CreateObject("Msxml2.ServerXMLHTTP")
+        .Open sMethod, sURL, False
+        .setRequestHeader "Cache-Control", "no-cache"
+        .setRequestHeader "Pragma", "no-cache"
+        .Send sPost
+        Do Until .ReadyState = 4: DoEvents: Loop
+            sResponse = .ResponseText
+    End With
+    Debug.Print sResponse & " <- " & sMethod & " " & sURL & " " & sPost
+    HttpRequest = sResponse
 End Function
 
 Private Function ToUnixTime(ByVal dt As Date) As LongLong
