@@ -1,6 +1,6 @@
 This Outlook macro exports Outlook Notes to Joplin.
 
-It is based on [@ramisedhom's macro](https://gist.github.com/ramisedhom/0f34c5d6a8d73f0b98ac4bea2ec30be0) for exporting Outlook Mail, which was further [developed by @breisfeld](https://gist.github.com/breisfeld/af22feeab3ba0849a9fb6c7ab596992b).
+It is based on [@ramisedhom's macro](https://gist.github.com/ramisedhom/0f34c5d6a8d73f0b98ac4bea2ec30be0) for exporting Outlook Mail, which was also independently [developed by @breisfeld](https://gist.github.com/breisfeld/af22feeab3ba0849a9fb6c7ab596992b).
 
 Instructions
 ============
