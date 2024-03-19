@@ -40,7 +40,7 @@ Public Sub SendToJoplin()
         sJSONString = HttpRequest(sURL & "/notes?token=" & sToken, "POST", sPost)
         sNoteID = ParseJsonResponse(sJSONString, "id", "AddNote")
         If sNoteID <> "" Then
-            Debug.Print sJSONString
+'            Debug.Print sJSONString
             nExport = nExport + 1
         Else
             nError = nError + 1
@@ -56,7 +56,7 @@ Public Sub SendToJoplin()
                     sJSONString = HttpRequest(sURL & "/tags/" & sTagID & "/notes?token=" & sToken, "POST", "{ ""id"": """ & sNoteID & """ }")
                     sTaggedID = ParseJsonResponse(sJSONString, "id", "AddNote")
                     If sTaggedID <> "" Then
-                        Debug.Print sJSONString
+'                        Debug.Print sJSONString
                     Else
                         nError = nError + 1
                     End If
