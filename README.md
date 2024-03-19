@@ -25,7 +25,7 @@ It is based on [@ramisedhom's macro](https://gist.github.com/ramisedhom/0f34c5d6
 
 ## Discussion
 
-* [Export Outlook Notes to Joplin (19/03/2024)](https://discourse.joplinapp.org/t/export-outlook-notes-to-joplin/36901) - this Gist
+* [Export Outlook Notes to Joplin (19/03/2024)](https://discourse.joplinapp.org/t/export-outlook-notes-to-joplin/36901) - discussion of this Gist
 * [First trial to create note from Outlook (22/12/2019)](https://discourse.joplinapp.org/t/first-trial-to-create-note-from-outlook/4822)
 * [Import Microsoft Outlook notes (25/04/2020)](https://discourse.joplinapp.org/t/import-microsoft-outlook-notes/8201)
 * [Export email from Outlook to Joplin (14/04/2022)](https://discourse.joplinapp.org/t/export-email-from-outlook-to-joplin/25148)
