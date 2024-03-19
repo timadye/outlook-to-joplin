@@ -1,9 +1,10 @@
+# Outlook Notes to Joplin
+
 This Outlook macro exports Outlook Notes to Joplin.
 
 It is based on [@ramisedhom's macro](https://gist.github.com/ramisedhom/0f34c5d6a8d73f0b98ac4bea2ec30be0) for exporting Outlook Mail, which was also independently [developed by @breisfeld](https://gist.github.com/breisfeld/af22feeab3ba0849a9fb6c7ab596992b).
 
-Instructions
-============
+## Instructions
 
 1. Open Outlook for Microsoft 365. May work with other versions, but macros are reportedly not supported in the [New Outlook for Windows](https://support.microsoft.com/en-gb/office/getting-started-with-the-new-outlook-for-windows-656bb8d9-5a60-49b2-a98b-ba7822bc7627).
 2. See these instructions to [create a macro with Microsoft Visual Basic for Applications (VBA)](https://support.microsoft.com/en-gb/office/create-a-macro-in-outlook-ffc49e8c-0e5b-4daa-912d-e68c6c46bf27)
@@ -22,8 +23,7 @@ Instructions
 15. When it is done, a message box will open saying how many notes were exported to Joplin.
 16. The notes will be in a Joplin workbook called `Outlook Notes`. Since Outlook notes are plain text, they will be imported as Markdown source. The `Created`, `Modified`, and `Categories` fields will be exported to Joplin `Created`, `Updated`, and `Tags` fields.
 
-Discussion
-==========
+## Discussion
 
 * [Export Outlook Notes to Joplin (19/03/2024)](https://discourse.joplinapp.org/t/export-outlook-notes-to-joplin/36901) - this Gist
 * [First trial to create note from Outlook (22/12/2019)](https://discourse.joplinapp.org/t/first-trial-to-create-note-from-outlook/4822)
