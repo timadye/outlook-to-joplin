@@ -6,7 +6,7 @@ Instructions
 1. Open Outlook for Microsoft 365. May work with other versions, but macros are reportedly not supported in the [New Outlook for Windows](https://support.microsoft.com/en-gb/office/getting-started-with-the-new-outlook-for-windows-656bb8d9-5a60-49b2-a98b-ba7822bc7627).
 2. See these instructions to [create a macro with Microsoft Visual Basic for Applications (VBA)](https://support.microsoft.com/en-gb/office/create-a-macro-in-outlook-ffc49e8c-0e5b-4daa-912d-e68c6c46bf27)
 3. In VBA `Tools` > `References`, check that you have `Microsoft Scripting Runtime` enabled.
-4. Select `Raw` mode for this Gist and Copy the text.
+4. In [`Outlook Notes to Joplin.bas`](https://gist.github.com/timadye/c0cd594f08c6b1d6a2c8d48be396da56#file-outlook-notes-to-joplin-bas), in this Gist below, select `Raw` mode and Copy the text.
 5. Paste the text into `ThisOutlookSession` window in VBA
 6. Download [`JSON.bas`](https://github.com/omegastripes/VBA-JSON-parser/blob/master/JSON.bas) to your computer
 7. In VBA: `File` > `Import File...` and select your downloaded `JSON.bas`
