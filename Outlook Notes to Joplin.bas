@@ -10,14 +10,14 @@ Public Sub SendToJoplin()
     Dim sNoteID As String
     Dim sFolderName As String
     Dim sMsg As String
-    Dim objItem As Outlook.NoteItem
+    Dim oItem As Outlook.NoteItem
     Dim nExport As Integer
     Dim nError As Integer
-    Dim sPost As String
     Dim sTagID As String
     Dim aCategories() As String
     Dim i As Integer
     Dim sTaggedID As String
+    Dim oNoteIDs
     
     sFolderName = "Outlook Notes"
     sToken = "REPLACE ME WITH YOUR TOKEN"
@@ -26,38 +26,42 @@ Public Sub SendToJoplin()
     sFolderID = CreateJoplinItem("folder", sFolderName, sURL, sToken)
     If sFolderID = "" Then Return
 
+    Set oNoteIDs = CreateObject("Scripting.Dictionary")
     nExport = 0
     nError = 0
-    For Each objItem In Application.ActiveExplorer.Selection
+    For Each oItem In Application.ActiveExplorer.Selection
 
-        sPost = "{ ""is_todo"": 0, ""title"": """ & objItem.Subject & """" _
-            & ", ""parent_id"": """ & sFolderID & """" _
-            & ", ""user_created_time"": """ & ToUnixTime(objItem.CreationTime) & """" _
-            & ", ""user_updated_time"": """ & ToUnixTime(objItem.LastModificationTime) & """" _
-            & ", ""body"": """ & EscapeBody(objItem.Body) & """" _
-            & " }"
+        sJSONString = HttpRequest(sURL & "/notes?token=" & sToken, "POST", "{ " _
+                        & """is_todo"": 0, ""title"": """ & EscapeBody(oItem.Subject) & """" _
+                        & ", ""parent_id"": """ & sFolderID & """" _
+                        & ", ""user_created_time"": """ & ToUnixTime(oItem.CreationTime) & """" _
+                        & ", ""user_updated_time"": """ & ToUnixTime(oItem.LastModificationTime) & """" _
+                        & ", ""body"": """ & EscapeBody(oItem.Body) & """" _
+                        & " }")
 
-        sJSONString = HttpRequest(sURL & "/notes?token=" & sToken, "POST", sPost)
         sNoteID = ParseJsonResponse(sJSONString, "id", "AddNote")
         If sNoteID <> "" Then
-'            Debug.Print sJSONString
             nExport = nExport + 1
+            Debug.Print nExport & " " & EscapeBody(oItem.Subject)
         Else
             nError = nError + 1
         End If
     
-        If objItem.Categories <> "" And sNoteID <> "" Then
-            aCategories = Split(objItem.Categories, ", ")
+        If oItem.Categories <> "" And sNoteID <> "" Then
+            aCategories = Split(oItem.Categories, ", ")
             For i = LBound(aCategories, 1) To UBound(aCategories, 1)
-                sTagID = CreateJoplinItem("tag", aCategories(i), sURL, sToken)
+                If oNoteIDs.Exists(aCategories(i)) Then
+                    sTagID = oNoteIDs.item(aCategories(i))
+                Else
+                    sTagID = CreateJoplinItem("tag", aCategories(i), sURL, sToken)
+                    oNoteIDs.Add aCategories(i), sTagID
+                End If
                 If sTagID = "" Then
                     nError = nError + 1
                 Else
                     sJSONString = HttpRequest(sURL & "/tags/" & sTagID & "/notes?token=" & sToken, "POST", "{ ""id"": """ & sNoteID & """ }")
                     sTaggedID = ParseJsonResponse(sJSONString, "id", "AddNote")
-                    If sTaggedID <> "" Then
-'                        Debug.Print sJSONString
-                    Else
+                    If sTaggedID = "" Then
                         nError = nError + 1
                     End If
                 End If
@@ -84,29 +88,28 @@ Private Function EscapeBody(sText As String) As String
     EscapeBody = Replace(EscapeBody, vbTab, "\t")               'Tab is replaced with \t
 End Function
 
-Private Function FindJoplinItem(sType As String, sFolderName As String, sURL As String, sToken As String) As String
+Private Function FindJoplinItem(sType As String, sItemName As String, sURL As String, sToken As String) As String
     Dim sJSONString As String
-    Dim sFolderID As String
     Dim aItems As Variant
     Dim i As Integer
     Dim page As Integer
+    Dim oItem
 
     page = 1
     Do
-        ' Some folder names can have \r appended to them, so we search for everything starting with our desired name
-        sJSONString = HttpRequest(sURL & "/search?query=" & sFolderName & "*&type=" & sType & "&fields=id,title&page=" & page & "&token=" & sToken)
-        ' or could do this and return all folders:
-        '   sJSONString = HttpRequest(sURL & "/" & sType & "s?fields=id,title&token=" & sToken)
+        sJSONString = HttpRequest(sURL & "/search?query=" & sItemName & "&type=" & sType & "&fields=id,title&page=" & page & "&token=" & sToken)
+        ' or could do this and return all items:  HttpRequest(sURL & "/" & sType & "s?fields=id,title&token=" & sToken)
         page = page + 1
         aItems = ParseJsonResponse(sJSONString, "items", "FindJoplinItem")
     
         If IsArray(aItems) Then
-            For i = 0 To UBound(aItems)
+            For i = LBound(aItems) To UBound(aItems)
                 If VarType(aItems(i)) = vbObject Then
-                    If aItems(i).Exists("id") And aItems(i).Exists("title") Then
-'                        Debug.Print aItems(i).item("id") & " " & aItems(i).item("title")
-                        If LCase(aItems(i).item("title")) = LCase(sFolderName) Then
-                            FindJoplinItem = aItems(i).item("id")
+                    Set oItem = aItems(i)
+                    If oItem.Exists("id") And oItem.Exists("title") Then
+'                        Debug.Print oItem.Item("id") & " " & oItem.item("title")
+                        If LCase(oItem.item("title")) = LCase(sItemName) Then
+                            FindJoplinItem = oItem.item("id")
                             Exit Function
                         End If
                     End If
@@ -117,13 +120,13 @@ Private Function FindJoplinItem(sType As String, sFolderName As String, sURL As 
     FindJoplinItem = ""
 End Function
     
-Private Function CreateJoplinItem(sType As String, sFolderName As String, sURL As String, sToken As String) As String
+Private Function CreateJoplinItem(sType As String, sItemName As String, sURL As String, sToken As String) As String
     Dim sJSONString As String
 
-    CreateJoplinItem = FindJoplinItem(sType, sFolderName, sURL, sToken)
+    CreateJoplinItem = FindJoplinItem(sType, sItemName, sURL, sToken)
     If CreateJoplinItem <> "" Then Exit Function
 
-    sJSONString = HttpRequest(sURL & "/" & sType & "s?token=" & sToken, "POST", "{ ""title"": """ & sFolderName & """ }")
+    sJSONString = HttpRequest(sURL & "/" & sType & "s?token=" & sToken, "POST", "{ ""title"": """ & EscapeBody(sItemName) & """ }")
     CreateJoplinItem = ParseJsonResponse(sJSONString, "id", "CreateJoplinItem")
 End Function
 
@@ -159,11 +162,16 @@ Private Function HttpRequest(sURL As String, Optional sMethod As String = "GET",
         Do Until .ReadyState = 4: DoEvents: Loop
             sResponse = .ResponseText
     End With
-    Debug.Print sResponse & " <- " & sMethod & " " & sURL & " " & sPost
+'    Debug.Print sResponse & " <- " & sMethod & " " & sURL & " " & sPost
     HttpRequest = sResponse
 End Function
 
 Private Function ToUnixTime(ByVal dt As Date) As LongLong
-    ToUnixTime = DateDiff("s", "1/1/1970 00:00:00", dt) * 1000
-'    Debug.Print ToUnixTime
+   ' ToUnixTime convert Date value in the local timezone to Unix timestamp in milliseconds, UTC
+   ' Based on example from https://gist.github.com/seakintruth/ddcc3d5e400a5083458494ae30d55466
+    Dim objDateTime
+    Set objDateTime = CreateObject("WbemScripting.SWbemDateTime")
+    objDateTime.SetVarDate dt
+    ToUnixTime = DateDiff("s", "01/01/1970 00:00:00", CDate(objDateTime.GetVarDate(False))) * 1000 + Fix((dt - Fix(dt)) * 1000)
+'    Debug.Print dt & Format(dt - Fix(dt), ".000") & " -> " & ToUnixTime
 End Function
