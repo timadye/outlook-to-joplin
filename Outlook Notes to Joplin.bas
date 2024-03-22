@@ -6,11 +6,13 @@ Public Sub SendToJoplin()
     Dim sToken As String
     Dim sURL As String
     Dim sJSONString As String
-    Dim sFolderID As String
-    Dim sNoteID As String
-    Dim sFolderName As String
+    Dim sMailFolderID As String
+    Dim sNotesFolderID As String
+    Dim sMailFolderName As String
+    Dim sNotesFolderName As String
+    Dim sItemID As String
     Dim sMsg As String
-    Dim oItem As Outlook.NoteItem
+    Dim oItem As Object  ' Outlook.MailItem or Outlook.PostItem or Outlook.NoteItem
     Dim nExport As Integer
     Dim nError As Integer
     Dim sTagID As String
@@ -19,35 +21,63 @@ Public Sub SendToJoplin()
     Dim sTaggedID As String
     Dim oNoteIDs
     
-    sFolderName = "Outlook Notes"
     sToken = "REPLACE ME WITH YOUR TOKEN"
     sURL = "http://127.0.0.1:41184"
-
-    sFolderID = CreateJoplinItem("folder", sFolderName, sURL, sToken)
-    If sFolderID = "" Then Return
+    sMailFolderName = "Outlook Mail"
+    sNotesFolderName = "Outlook Notes"
 
     Set oNoteIDs = CreateObject("Scripting.Dictionary")
+    sMailFolderID = ""
+    sNotesFolderID = ""
     nExport = 0
     nError = 0
     For Each oItem In Application.ActiveExplorer.Selection
 
-        sJSONString = HttpRequest(sURL & "/notes?token=" & sToken, "POST", "{ " _
-                        & """is_todo"": 0, ""title"": """ & EscapeBody(oItem.Subject) & """" _
-                        & ", ""parent_id"": """ & sFolderID & """" _
-                        & ", ""user_created_time"": """ & ToUnixTime(oItem.CreationTime) & """" _
-                        & ", ""user_updated_time"": """ & ToUnixTime(oItem.LastModificationTime) & """" _
-                        & ", ""body"": """ & EscapeBody(oItem.Body) & """" _
-                        & " }")
+        If TypeOf oItem Is Outlook.MailItem Or TypeOf oItem Is Outlook.PostItem Then
 
-        sNoteID = ParseJsonResponse(sJSONString, "id", "AddNote")
-        If sNoteID <> "" Then
+            If sMailFolderID = "" Then
+                sMailFolderID = CreateJoplinItem("folder", sMailFolderName, sURL, sToken)
+                If sMailFolderID = "" Then Return
+            End If
+            sJSONString = HttpRequest(sURL & "/notes?token=" & sToken, "POST", "{ " _
+                            & """is_todo"": 0, ""title"": """ & EscapeBody(oItem.ConversationTopic) & """" _
+                            & ", ""parent_id"": """ & sMailFolderID & """" _
+                            & ", ""user_created_time"": """ & ToUnixTime(oItem.CreationTime) & """" _
+                            & ", ""user_updated_time"": """ & ToUnixTime(oItem.ReceivedTime) & """" _
+                            & ", ""body"": """ & EscapeBody(MakeBody(oItem)) & """" _
+                            & " }")
+            sItemID = ParseJsonResponse(sJSONString, "id", "AddNote")
+        
+        ElseIf TypeOf oItem Is Outlook.NoteItem Then
+        
+            If sNotesFolderID = "" Then
+                sNotesFolderID = CreateJoplinItem("folder", sNotesFolderName, sURL, sToken)
+                If sNotesFolderID = "" Then Return
+            End If
+        
+            sJSONString = HttpRequest(sURL & "/notes?token=" & sToken, "POST", "{ " _
+                            & """is_todo"": 0, ""title"": """ & EscapeBody(oItem.Subject) & """" _
+                            & ", ""parent_id"": """ & sNotesFolderID & """" _
+                            & ", ""user_created_time"": """ & ToUnixTime(oItem.CreationTime) & """" _
+                            & ", ""user_updated_time"": """ & ToUnixTime(oItem.LastModificationTime) & """" _
+                            & ", ""body"": """ & EscapeBody(oItem.Body) & """" _
+                            & " }")
+            sItemID = ParseJsonResponse(sJSONString, "id", "AddNote")
+
+        Else
+            MsgBox "Outlook " & TypeName(oItem) & " is not supported: " & oItem.Subject
+            sItemID = ""
+        End If
+
+        If sItemID <> "" Then
             nExport = nExport + 1
             Debug.Print nExport & " " & EscapeBody(oItem.Subject)
         Else
             nError = nError + 1
         End If
     
-        If oItem.Categories <> "" And sNoteID <> "" Then
+    
+        If oItem.Categories <> "" And sItemID <> "" Then
             aCategories = Split(oItem.Categories, ", ")
             For i = LBound(aCategories, 1) To UBound(aCategories, 1)
                 If oNoteIDs.Exists(aCategories(i)) Then
@@ -59,7 +89,7 @@ Public Sub SendToJoplin()
                 If sTagID = "" Then
                     nError = nError + 1
                 Else
-                    sJSONString = HttpRequest(sURL & "/tags/" & sTagID & "/notes?token=" & sToken, "POST", "{ ""id"": """ & sNoteID & """ }")
+                    sJSONString = HttpRequest(sURL & "/tags/" & sTagID & "/notes?token=" & sToken, "POST", "{ ""id"": """ & sItemID & """ }")
                     sTaggedID = ParseJsonResponse(sJSONString, "id", "AddNote")
                     If sTaggedID = "" Then
                         nError = nError + 1
@@ -68,13 +98,46 @@ Public Sub SendToJoplin()
             Next
         End If
     Next
-    sMsg = nExport & " notes exported to Joplin folder """ & sFolderName & """"
+    sMsg = nExport & " notes exported to Joplin folder "
+    If sMailFolderID = "" Then
+        sMsg = sMsg & """" & sNotesFolderName & """"
+    ElseIf sNotesFolderID = "" Then
+        sMsg = sMsg & """" & sMailFolderName & """"
+    Else
+        sMsg = sMsg & """" & sNotesFolderName & """ and """ & sMailFolderName & """"
+    End If
     If nError = 0 Then
         MsgBox sMsg
-    ElseIf nExport = 0 Then
+    Else
         MsgBox nError & " errors encountered. " & sMsg
     End If
 End Sub
+
+Private Function MakeBody(oItem As Object) As String
+    Dim sFrom As String
+
+    sFrom = oItem.SenderEmailAddress
+    If oItem.SenderName <> "" Then
+        If sFrom <> "" Then
+            sFrom = oItem.SenderName & " <" & sFrom & ">"
+        Else
+            sFrom = oItem.SenderName
+        End If
+    End If
+    If oItem.BodyFormat = olFormatHTML Then
+        MakeBody = oItem.HTMLBody
+        sFrom = EscapeHtml(sFrom)
+    Else
+        MakeBody = oItem.Body
+    End If
+    If TypeOf oItem Is Outlook.MailItem Then
+        If oItem.To <> "" Then
+            MakeBody = "From: " & sFrom & vbLf & _
+                       "To: " & oItem.To & vbLf & MakeBody
+        End If
+    End If
+End Function
+
 
 Private Function EscapeBody(sText As String) As String
     EscapeBody = sText
@@ -88,28 +151,34 @@ Private Function EscapeBody(sText As String) As String
     EscapeBody = Replace(EscapeBody, vbTab, "\t")               'Tab is replaced with \t
 End Function
 
+Private Function EscapeHtml(sText As String) As String
+    EscapeHtml = sText
+    EscapeHtml = Replace(EscapeHtml, "&", "&amp;")
+    EscapeHtml = Replace(EscapeHtml, "<", "&lt;")
+    EscapeHtml = Replace(EscapeHtml, ">", "&gt;")
+End Function
+
 Private Function FindJoplinItem(sType As String, sItemName As String, sURL As String, sToken As String) As String
     Dim sJSONString As String
     Dim aItems As Variant
     Dim i As Integer
     Dim page As Integer
-    Dim oItem
+    Dim jItem As Object
 
     page = 1
     Do
-        sJSONString = HttpRequest(sURL & "/search?query=" & sItemName & "&type=" & sType & "&fields=id,title&page=" & page & "&token=" & sToken)
-        ' or could do this and return all items:  HttpRequest(sURL & "/" & sType & "s?fields=id,title&token=" & sToken)
+        sJSONString = HttpRequest(sURL & "/search?query=" & sItemName & "&type=" & sType & "&page=" & page & "&token=" & sToken)
         page = page + 1
         aItems = ParseJsonResponse(sJSONString, "items", "FindJoplinItem")
     
         If IsArray(aItems) Then
             For i = LBound(aItems) To UBound(aItems)
                 If VarType(aItems(i)) = vbObject Then
-                    Set oItem = aItems(i)
-                    If oItem.Exists("id") And oItem.Exists("title") Then
-'                        Debug.Print oItem.Item("id") & " " & oItem.item("title")
-                        If LCase(oItem.item("title")) = LCase(sItemName) Then
-                            FindJoplinItem = oItem.item("id")
+                    Set jItem = aItems(i)
+                    If jItem.Exists("id") And jItem.Exists("title") And jItem.Exists("parent_id") Then
+'                        Debug.Print jItem.Item("id") & " " & jItem.item("title")
+                        If jItem.item("parent_id") = "" And LCase(jItem.item("title")) = LCase(sItemName) Then
+                            FindJoplinItem = jItem.item("id")
                             Exit Function
                         End If
                     End If
