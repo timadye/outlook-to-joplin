@@ -33,5 +33,5 @@ It is based on [@ramisedhom's macro](https://gist.github.com/ramisedhom/0f34c5d6
 
 ## Revisions
 
-19/03/2024 Allow special characters in title. Account for timezones. Cache tag ids. Simpler search.
-21/03/2024 Export Mail and Post items, as well as Notes, from Outlook. They are saved in "Outlook Mail" notebook.
+* 19/03/2024 Allow special characters in title. Account for timezones. Cache tag ids. Simpler search.
+* 21/03/2024 Export Mail and Post items, as well as Notes, from Outlook. They are saved in "Outlook Mail" notebook.
