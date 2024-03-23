@@ -20,7 +20,7 @@ Public Sub SendToJoplin()
     Dim i As Integer
     Dim sTaggedID As String
     Dim oNoteIDs
-    
+
     sToken = "REPLACE ME WITH YOUR TOKEN"
     sURL = "http://127.0.0.1:41184"
     sMailFolderName = "Outlook Mail"
@@ -115,6 +115,7 @@ End Sub
 
 Private Function MakeBody(oItem As Object) As String
     Dim sFrom As String
+    Dim sNl As String
 
     sFrom = oItem.SenderEmailAddress
     If oItem.SenderName <> "" Then
@@ -127,13 +128,16 @@ Private Function MakeBody(oItem As Object) As String
     If oItem.BodyFormat = olFormatHTML Then
         MakeBody = oItem.HTMLBody
         sFrom = EscapeHtml(sFrom)
+        sNl = "<br/>" & vbLf
     Else
         MakeBody = oItem.Body
+        sNl = vbLf
     End If
     If TypeOf oItem Is Outlook.MailItem Then
         If oItem.To <> "" Then
-            MakeBody = "From: " & sFrom & vbLf & _
-                       "To: " & oItem.To & vbLf & vbLf & MakeBody
+            MakeBody = "From: " & sFrom & sNl & _
+                       "To: " & oItem.To & sNl & sNl & _
+                       MakeBody
         End If
     End If
 End Function
