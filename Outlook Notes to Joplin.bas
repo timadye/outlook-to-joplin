@@ -21,10 +21,10 @@ Public Sub SendToJoplin()
     Dim sTaggedID As String
     Dim oNoteIDs
     
-    sMailFolderName = "Outlook Mail"
-    sNotesFolderName = "Outlook Notes"
     sToken = "REPLACE ME WITH YOUR TOKEN"
     sURL = "http://127.0.0.1:41184"
+    sMailFolderName = "Outlook Mail"
+    sNotesFolderName = "Outlook Notes"
 
     Set oNoteIDs = CreateObject("Scripting.Dictionary")
     sMailFolderID = ""
@@ -117,8 +117,8 @@ Private Function MakeBody(oItem As Object) As String
     Dim sFrom As String
 
     sFrom = oItem.SenderEmailAddress
-    If oItem.SenderName <> "" And sFrom Like "*@*" Then
-        If sFrom <> "" Then
+    If oItem.SenderName <> "" Then
+        If sFrom <> "" And oItem.SenderEmailType = "SMTP" Then
             sFrom = oItem.SenderName & " <" & sFrom & ">"
         Else
             sFrom = oItem.SenderName
@@ -133,7 +133,7 @@ Private Function MakeBody(oItem As Object) As String
     If TypeOf oItem Is Outlook.MailItem Then
         If oItem.To <> "" Then
             MakeBody = "From: " & sFrom & vbLf & _
-                       "To: " & oItem.To & vbLf & MakeBody
+                       "To: " & oItem.To & vbLf & vbLf & MakeBody
         End If
     End If
 End Function
