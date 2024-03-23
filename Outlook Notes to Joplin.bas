@@ -21,10 +21,10 @@ Public Sub SendToJoplin()
     Dim sTaggedID As String
     Dim oNoteIDs
     
-    sToken = "REPLACE ME WITH YOUR TOKEN"
-    sURL = "http://127.0.0.1:41184"
     sMailFolderName = "Outlook Mail"
     sNotesFolderName = "Outlook Notes"
+    sToken = "REPLACE ME WITH YOUR TOKEN"
+    sURL = "http://127.0.0.1:41184"
 
     Set oNoteIDs = CreateObject("Scripting.Dictionary")
     sMailFolderID = ""
@@ -44,7 +44,7 @@ Public Sub SendToJoplin()
                             & ", ""parent_id"": """ & sMailFolderID & """" _
                             & ", ""user_created_time"": """ & ToUnixTime(oItem.CreationTime) & """" _
                             & ", ""user_updated_time"": """ & ToUnixTime(oItem.ReceivedTime) & """" _
-                            & ", ""body"": """ & EscapeBody(MakeBody(oItem)) & """" _
+                            & ", """ & IIf(oItem.BodyFormat = olFormatHTML, "body_html", "body") & """: """ & EscapeBody(MakeBody(oItem)) & """" _
                             & " }")
             sItemID = ParseJsonResponse(sJSONString, "id", "AddNote")
         
@@ -117,7 +117,7 @@ Private Function MakeBody(oItem As Object) As String
     Dim sFrom As String
 
     sFrom = oItem.SenderEmailAddress
-    If oItem.SenderName <> "" Then
+    If oItem.SenderName <> "" And sFrom Like "*@*" Then
         If sFrom <> "" Then
             sFrom = oItem.SenderName & " <" & sFrom & ">"
         Else
