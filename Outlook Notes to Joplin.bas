@@ -135,9 +135,8 @@ Private Function MakeBody(oItem As Object) As String
     End If
     If TypeOf oItem Is Outlook.MailItem Then
         If oItem.To <> "" Then
-            MakeBody = "From: " & sFrom & sNl & _
-                       "To: " & oItem.To & sNl & sNl & _
-                       MakeBody
+            MakeBody = "To: " & oItem.To & sNl & sNl & MakeBody
+            If sFrom <> "" Then MakeBody = "From: " & sFrom & sNl & MakeBody
         End If
     End If
 End Function
