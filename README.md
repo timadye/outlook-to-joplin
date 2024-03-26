@@ -36,3 +36,4 @@ It is based on [@ramisedhom's macro](https://gist.github.com/ramisedhom/0f34c5d6
 * 19/03/2024 Allow special characters in title. Account for timezones. Cache tag ids. Simpler search.
 * 21/03/2024 Export Mail and Post items, as well as Notes, from Outlook. They are saved in "Outlook Mail" notebook.
 * 23/03/2024 use `html_body` in Joplin `POST`. Only include SMTP addresses in `From` field. Only include `From` if present.
+* 26/03/2024 upload attachments

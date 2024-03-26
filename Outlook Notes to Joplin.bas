@@ -4,58 +4,58 @@ Private has_more As Boolean
 
 Public Sub SendToJoplin()
     Dim sToken As String
-    Dim sURL As String
-    Dim sJSONString As String
-    Dim sMailFolderID As String
-    Dim sNotesFolderID As String
+    Dim sUrl As String
     Dim sMailFolderName As String
     Dim sNotesFolderName As String
-    Dim sItemID As String
-    Dim sMsg As String
-    Dim oItem As Object  ' Outlook.MailItem or Outlook.PostItem or Outlook.NoteItem
-    Dim nExport As Integer
-    Dim nError As Integer
-    Dim sTagID As String
-    Dim aCategories() As String
-    Dim i As Integer
-    Dim sTaggedID As String
-    Dim oNoteIDs
 
     sToken = "REPLACE ME WITH YOUR TOKEN"
-    sURL = "http://127.0.0.1:41184"
+    sUrl = "http://127.0.0.1:41184"
     sMailFolderName = "Outlook Mail"
     sNotesFolderName = "Outlook Notes"
 
+    Dim sMailFolderID As String
+    Dim sNotesFolderID As String
+    Dim oNoteIDs
     Set oNoteIDs = CreateObject("Scripting.Dictionary")
     sMailFolderID = ""
     sNotesFolderID = ""
+    
+    Dim nExport As Integer
+    Dim nError As Integer
     nExport = 0
     nError = 0
+    
+    Dim oItem As Object  ' Outlook.MailItem or Outlook.PostItem or Outlook.NoteItem
     For Each oItem In Application.ActiveExplorer.Selection
+        Dim sJSONString As String
+        Dim sItemID As String
 
         If TypeOf oItem Is Outlook.MailItem Or TypeOf oItem Is Outlook.PostItem Then
 
             If sMailFolderID = "" Then
-                sMailFolderID = CreateJoplinItem("folder", sMailFolderName, sURL, sToken)
+                sMailFolderID = CreateJoplinItem("folder", sMailFolderName, sUrl, sToken)
                 If sMailFolderID = "" Then Return
             End If
-            sJSONString = HttpRequest(sURL & "/notes?token=" & sToken, "POST", "{ " _
+            
+            Dim sAttachmentInfo As String
+            sAttachmentInfo = ImportAttachments(oItem, sUrl, sToken)
+            sJSONString = HttpRequest(sUrl & "/notes?token=" & sToken, "POST", "{ " _
                             & """is_todo"": 0, ""title"": """ & EscapeBody(oItem.ConversationTopic) & """" _
                             & ", ""parent_id"": """ & sMailFolderID & """" _
                             & ", ""user_created_time"": """ & ToUnixTime(oItem.CreationTime) & """" _
                             & ", ""user_updated_time"": """ & ToUnixTime(oItem.ReceivedTime) & """" _
-                            & ", """ & IIf(oItem.BodyFormat = olFormatHTML, "body_html", "body") & """: """ & EscapeBody(MakeBody(oItem)) & """" _
+                            & ", """ & IIf(oItem.BodyFormat = olFormatHTML, "body_html", "body") & """: """ & EscapeBody(MakeBody(oItem, sAttachmentInfo)) & """" _
                             & " }")
             sItemID = ParseJsonResponse(sJSONString, "id", "AddNote")
         
         ElseIf TypeOf oItem Is Outlook.NoteItem Then
         
             If sNotesFolderID = "" Then
-                sNotesFolderID = CreateJoplinItem("folder", sNotesFolderName, sURL, sToken)
+                sNotesFolderID = CreateJoplinItem("folder", sNotesFolderName, sUrl, sToken)
                 If sNotesFolderID = "" Then Return
             End If
         
-            sJSONString = HttpRequest(sURL & "/notes?token=" & sToken, "POST", "{ " _
+            sJSONString = HttpRequest(sUrl & "/notes?token=" & sToken, "POST", "{ " _
                             & """is_todo"": 0, ""title"": """ & EscapeBody(oItem.Subject) & """" _
                             & ", ""parent_id"": """ & sNotesFolderID & """" _
                             & ", ""user_created_time"": """ & ToUnixTime(oItem.CreationTime) & """" _
@@ -78,18 +78,24 @@ Public Sub SendToJoplin()
     
     
         If oItem.Categories <> "" And sItemID <> "" Then
+            Dim aCategories() As String
             aCategories = Split(oItem.Categories, ", ")
-            For i = LBound(aCategories, 1) To UBound(aCategories, 1)
-                If oNoteIDs.Exists(aCategories(i)) Then
-                    sTagID = oNoteIDs.item(aCategories(i))
+            Dim vCategory As Variant
+            For Each vCategory In aCategories
+                Dim sCategory As String
+                Dim sTagID As String
+                sCategory = vCategory
+                If oNoteIDs.Exists(sCategory) Then
+                    sTagID = oNoteIDs.item(sCategory)
                 Else
-                    sTagID = CreateJoplinItem("tag", aCategories(i), sURL, sToken)
-                    oNoteIDs.Add aCategories(i), sTagID
+                    sTagID = CreateJoplinItem("tag", sCategory, sUrl, sToken)
+                    oNoteIDs.Add sCategory, sTagID
                 End If
                 If sTagID = "" Then
                     nError = nError + 1
                 Else
-                    sJSONString = HttpRequest(sURL & "/tags/" & sTagID & "/notes?token=" & sToken, "POST", "{ ""id"": """ & sItemID & """ }")
+                    sJSONString = HttpRequest(sUrl & "/tags/" & sTagID & "/notes?token=" & sToken, "POST", "{ ""id"": """ & sItemID & """ }")
+                    Dim sTaggedID As String
                     sTaggedID = ParseJsonResponse(sJSONString, "id", "AddNote")
                     If sTaggedID = "" Then
                         nError = nError + 1
@@ -98,6 +104,7 @@ Public Sub SendToJoplin()
             Next
         End If
     Next
+    Dim sMsg As String
     sMsg = nExport & " notes exported to Joplin folder "
     If sMailFolderID = "" Then
         sMsg = sMsg & """" & sNotesFolderName & """"
@@ -113,7 +120,32 @@ Public Sub SendToJoplin()
     End If
 End Sub
 
-Private Function MakeBody(oItem As Object) As String
+Private Function ImportAttachments(oItem As Object, sUrl As String, sToken As String) As String
+    Dim oAttachment As Object
+    Dim sTemp As String
+    Dim sJSONString As String
+    Dim sFileID As String
+
+    ImportAttachments = ""
+    sTemp = Environ("TEMP")
+    For Each oAttachment In oItem.Attachments
+        Dim sSaveFile As String
+        sSaveFile = sTemp & "\" & oAttachment.DisplayName
+        oAttachment.SaveAsFile sSaveFile
+        sJSONString = HttpUpload(sUrl & "/resources?token=" & sToken, sSaveFile, "{ ""title"":""" & oAttachment.DisplayName & """ }")
+        Kill sSaveFile
+        sFileID = ParseJsonResponse(sJSONString, "id", "ImportAttachments")
+        If ImportAttachments <> "" Then ImportAttachments = ImportAttachments & ", "
+        If oItem.BodyFormat = olFormatHTML Then
+            ImportAttachments = ImportAttachments & "<a href=""" & sFileID & """>" & oAttachment.FileName & "</a>"
+        Else
+            ImportAttachments = ImportAttachments & "[" & oAttachment.FileName & "](:/" & sFileID & ")"
+        End If
+    Next
+End Function
+
+
+Private Function MakeBody(oItem As Object, sAttachmentInfo As String) As String
     Dim sFrom As String
     Dim sNl As String
 
@@ -133,14 +165,15 @@ Private Function MakeBody(oItem As Object) As String
         MakeBody = oItem.Body
         sNl = vbLf
     End If
+    If sAttachmentInfo <> "" Then MakeBody = "Attachments: " & sAttachmentInfo & sNl & sNl & MakeBody
     If TypeOf oItem Is Outlook.MailItem Then
         If oItem.To <> "" Then
-            MakeBody = "To: " & oItem.To & sNl & sNl & MakeBody
+            If sAttachmentInfo = "" Then MakeBody = sNl & MakeBody
+            MakeBody = "To: " & oItem.To & sNl & MakeBody
             If sFrom <> "" Then MakeBody = "From: " & sFrom & sNl & MakeBody
         End If
     End If
 End Function
-
 
 Private Function EscapeBody(sText As String) As String
     EscapeBody = sText
@@ -161,23 +194,21 @@ Private Function EscapeHtml(sText As String) As String
     EscapeHtml = Replace(EscapeHtml, ">", "&gt;")
 End Function
 
-Private Function FindJoplinItem(sType As String, sItemName As String, sURL As String, sToken As String) As String
-    Dim sJSONString As String
-    Dim aItems As Variant
-    Dim i As Integer
+Private Function FindJoplinItem(sType As String, sItemName As String, sUrl As String, sToken As String) As String
     Dim page As Integer
-    Dim jItem As Object
 
     page = 1
     Do
-        sJSONString = HttpRequest(sURL & "/search?query=" & sItemName & "&type=" & sType & "&page=" & page & "&token=" & sToken)
+        Dim sJSONString As String
+        Dim aItems As Variant
+        sJSONString = HttpRequest(sUrl & "/search?query=" & sItemName & "&type=" & sType & "&page=" & page & "&token=" & sToken)
         page = page + 1
         aItems = ParseJsonResponse(sJSONString, "items", "FindJoplinItem")
     
         If IsArray(aItems) Then
-            For i = LBound(aItems) To UBound(aItems)
-                If VarType(aItems(i)) = vbObject Then
-                    Set jItem = aItems(i)
+            Dim jItem As Variant
+            For Each jItem In aItems
+                If VarType(jItem) = vbObject Then
                     If jItem.Exists("id") And jItem.Exists("title") And jItem.Exists("parent_id") Then
 '                        Debug.Print jItem.Item("id") & " " & jItem.item("title")
                         If jItem.item("parent_id") = "" And LCase(jItem.item("title")) = LCase(sItemName) Then
@@ -192,13 +223,13 @@ Private Function FindJoplinItem(sType As String, sItemName As String, sURL As St
     FindJoplinItem = ""
 End Function
     
-Private Function CreateJoplinItem(sType As String, sItemName As String, sURL As String, sToken As String) As String
-    Dim sJSONString As String
+Private Function CreateJoplinItem(sType As String, sItemName As String, sUrl As String, sToken As String) As String
 
-    CreateJoplinItem = FindJoplinItem(sType, sItemName, sURL, sToken)
+    CreateJoplinItem = FindJoplinItem(sType, sItemName, sUrl, sToken)
     If CreateJoplinItem <> "" Then Exit Function
 
-    sJSONString = HttpRequest(sURL & "/" & sType & "s?token=" & sToken, "POST", "{ ""title"": """ & EscapeBody(sItemName) & """ }")
+    Dim sJSONString As String
+    sJSONString = HttpRequest(sUrl & "/" & sType & "s?token=" & sToken, "POST", "{ ""title"": """ & EscapeBody(sItemName) & """ }")
     CreateJoplinItem = ParseJsonResponse(sJSONString, "id", "CreateJoplinItem")
 End Function
 
@@ -223,11 +254,11 @@ Private Function ParseJsonResponse(sJSONString As String, sItem As String, sOp A
     End If
 End Function
 
-Private Function HttpRequest(sURL As String, Optional sMethod As String = "GET", Optional sPost As String = "") As String
+Private Function HttpRequest(sUrl As String, Optional sMethod As String = "GET", Optional sPost As String = "") As String
     Dim sResponse As String
     
     With CreateObject("Msxml2.ServerXMLHTTP")
-        .Open sMethod, sURL, False
+        .Open sMethod, sUrl, False
         .setRequestHeader "Cache-Control", "no-cache"
         .setRequestHeader "Pragma", "no-cache"
         .Send sPost
@@ -236,6 +267,52 @@ Private Function HttpRequest(sURL As String, Optional sMethod As String = "GET",
     End With
 '    Debug.Print sResponse & " <- " & sMethod & " " & sURL & " " & sPost
     HttpRequest = sResponse
+End Function
+
+Private Function HttpUpload(sUrl As String, sFileName As String, sPost As String) As String
+    ' upload file using XMLHTTP example from https://wqweto.wordpress.com/2011/07/12/vb6-using-wininet-to-post-binary-file/
+    Const STR_BOUNDARY As String = "SendToJoplin-HttpUpload-478624678463218"
+    Dim nFile As Integer
+    Dim baBuffer() As Byte
+    Dim sPostData As String
+    Dim sResponse As String
+
+    '--- read file
+    nFile = FreeFile
+    Open sFileName For Binary Access Read As nFile
+    If LOF(nFile) > 0 Then
+        ReDim baBuffer(0 To LOF(nFile) - 1) As Byte
+        Get nFile, , baBuffer
+        sPostData = StrConv(baBuffer, vbUnicode)
+        ReDim baBuffer(0) As Byte
+    End If
+    Close nFile
+    '--- prepare body
+    sPostData = "--" & STR_BOUNDARY & vbCrLf & _
+        "Content-Disposition: form-data; name=""props""" & vbCrLf & vbCrLf & _
+        sPost & vbCrLf & _
+        "--" & STR_BOUNDARY & vbCrLf & _
+        "Content-Disposition: form-data; name=""data""; filename=""" & Mid$(sFileName, InStrRev(sFileName, "\") + 1) & """" & vbCrLf & _
+        "Content-Type: application/octet-stream" & vbCrLf & vbCrLf & _
+        sPostData & vbCrLf & _
+        "--" & STR_BOUNDARY & "--"
+     '--- post
+'     Debug.Print sPostData
+     With CreateObject("Msxml2.ServerXMLHTTP")
+        .Open "POST", sUrl, False
+        .setRequestHeader "Cache-Control", "no-cache"
+        .setRequestHeader "Pragma", "no-cache"
+        .setRequestHeader "Content-Type", "multipart/form-data; boundary=" & STR_BOUNDARY
+        .Send pvToByteArray(sPostData)
+        Do Until .ReadyState = 4: DoEvents: Loop
+            sResponse = .ResponseText
+    End With
+'    Debug.Print sResponse
+    HttpUpload = sResponse
+End Function
+
+Private Function pvToByteArray(sText As String) As Byte()
+    pvToByteArray = StrConv(sText, vbFromUnicode)
 End Function
 
 Private Function ToUnixTime(ByVal dt As Date) As LongLong
