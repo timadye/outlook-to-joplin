@@ -25,12 +25,12 @@ Public Sub SendToJoplin()
     nExport = 0
     nError = 0
     
-    Dim oItem As Object  ' Outlook.MailItem or Outlook.PostItem or Outlook.NoteItem
+    Dim oItem As Object  ' Outlook.MailItem or Outlook.PostItem or Outlook.DocumentItem or Outlook.NoteItem
     For Each oItem In Application.ActiveExplorer.Selection
         Dim sJSONString As String
         Dim sItemID As String
 
-        If TypeOf oItem Is Outlook.MailItem Or TypeOf oItem Is Outlook.PostItem Then
+        If TypeOf oItem Is Outlook.MailItem Or TypeOf oItem Is Outlook.PostItem Or TypeOf oItem Is Outlook.DocumentItem Then
 
             If sMailFolderID = "" Then
                 sMailFolderID = CreateJoplinItem("folder", sMailFolderName, sUrl, sToken)
@@ -41,10 +41,10 @@ Public Sub SendToJoplin()
             sAttachmentInfo = ImportAttachments(oItem, sUrl, sToken)
             sJSONString = HttpRequest(sUrl & "/notes?token=" & sToken, "POST", "{ " _
                             & """is_todo"": 0, ""title"": """ & EscapeBody(oItem.ConversationTopic) & """" _
-                            & ", ""parent_id"": """ & sMailFolderID & """" _
                             & ", ""user_created_time"": """ & ToUnixTime(oItem.CreationTime) & """" _
-                            & ", ""user_updated_time"": """ & ToUnixTime(oItem.ReceivedTime) & """" _
-                            & ", """ & IIf(oItem.BodyFormat = olFormatHTML, "body_html", "body") & """: """ & EscapeBody(MakeBody(oItem, sAttachmentInfo)) & """" _
+                            & ", ""user_updated_time"": """ & ToUnixTime(UpdateTime(oItem)) & """" _
+                            & ", ""parent_id"": """ & sMailFolderID & """" _
+                            & ", """ & IIf(IsHtml(oItem), "body_html", "body") & """: """ & EscapeBody(MakeBody(oItem, sAttachmentInfo)) & """" _
                             & " }")
             sItemID = ParseJsonResponse(sJSONString, "id", "AddNote")
         
@@ -120,6 +120,14 @@ Public Sub SendToJoplin()
     End If
 End Sub
 
+Private Function UpdateTime(oItem As Object) As Date
+    If TypeOf oItem Is Outlook.DocumentItem Then
+        UpdateTime = oItem.LastModificationTime
+    Else
+        UpdateTime = oItem.ReceivedTime
+    End If
+End Function
+
 Private Function ImportAttachments(oItem As Object, sUrl As String, sToken As String) As String
     Dim oAttachment As Object
     Dim sTemp As String
@@ -136,7 +144,7 @@ Private Function ImportAttachments(oItem As Object, sUrl As String, sToken As St
         Kill sSaveFile
         sFileID = ParseJsonResponse(sJSONString, "id", "ImportAttachments")
         If ImportAttachments <> "" Then ImportAttachments = ImportAttachments & ", "
-        If oItem.BodyFormat = olFormatHTML Then
+        If IsHtml(oItem) Then
             ImportAttachments = ImportAttachments & "<a href=""" & sFileID & """>" & oAttachment.FileName & "</a>"
         Else
             ImportAttachments = ImportAttachments & "[" & oAttachment.FileName & "](:/" & sFileID & ")"
@@ -144,20 +152,29 @@ Private Function ImportAttachments(oItem As Object, sUrl As String, sToken As St
     Next
 End Function
 
+Private Function IsHtml(oItem As Object) As Boolean
+    If TypeOf oItem Is Outlook.DocumentItem Then
+        IsHtml = False
+    Else
+        IsHtml = (oItem.BodyFormat = olFormatHTML)
+    End If
+End Function
 
 Private Function MakeBody(oItem As Object, sAttachmentInfo As String) As String
     Dim sFrom As String
     Dim sNl As String
 
-    sFrom = oItem.SenderEmailAddress
-    If oItem.SenderName <> "" Then
-        If sFrom <> "" And oItem.SenderEmailType = "SMTP" Then
-            sFrom = oItem.SenderName & " <" & sFrom & ">"
-        Else
-            sFrom = oItem.SenderName
+    If Not (TypeOf oItem Is Outlook.DocumentItem) Then
+        sFrom = oItem.SenderEmailAddress
+        If oItem.SenderName <> "" Then
+            If sFrom <> "" And oItem.SenderEmailType = "SMTP" Then
+                sFrom = oItem.SenderName & " <" & sFrom & ">"
+            Else
+                sFrom = oItem.SenderName
+            End If
         End If
     End If
-    If oItem.BodyFormat = olFormatHTML Then
+    If IsHtml(oItem) Then
         MakeBody = oItem.HTMLBody
         sFrom = EscapeHtml(sFrom)
         sNl = "<br/>" & vbLf

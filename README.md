@@ -22,7 +22,7 @@ It was originally based on [@ramisedhom's macro](https://gist.github.com/ramised
 14. Run the Macro `Project1.ThisOutlookSession.SendToJoplin`. See the [instructions to run a macro in Outlook](https://support.microsoft.com/en-gb/office/run-a-macro-in-outlook-2e03e2e5-e637-4416-9ea0-2230151b0c31).
 15. When it is done, a message box will open saying how many notes were exported to Joplin.
 16. Notes will be in a Joplin workbook called `Outlook Notes`. Since Outlook notes are plain text, they will be imported as Markdown source. The `Created`, `Modified`, and `Categories` fields will be exported to Joplin `Created`, `Updated`, and `Tags` fields.
-17.  Mail and post messages will be in a Joplin workbook called `Outlook Mail`. They will be imported as HTML or plain text. Any attachments will be added as Joplin resources and referenced with an `Attachments:` header.
+17.  Mail and post messages, and document items, will be in a Joplin workbook called `Outlook Mail`. They will be imported as HTML or plain text. Any attachments will be added as Joplin resources and referenced with an `Attachments:` header.
 
 ## Discussion
 
@@ -37,4 +37,4 @@ It was originally based on [@ramisedhom's macro](https://gist.github.com/ramised
 * 21/03/2024 Export Mail and Post items, as well as Notes, from Outlook. They are saved in "Outlook Mail" notebook.
 * 23/03/2024 use `html_body` in Joplin `POST`. Only include SMTP addresses in `From` field. Only include `From` if present.
 * 26/03/2024 upload attachments
-* 27/03/2024 keep uploaded file as a byte array. Use GUID in multipart boundary.
+* 27/03/2024 keep uploaded file as a byte array. Use GUID in multipart boundary. Support Document Item.
