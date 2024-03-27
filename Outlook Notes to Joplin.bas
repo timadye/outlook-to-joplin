@@ -1,5 +1,5 @@
 Option Explicit
-
+Private Declare PtrSafe Function CoCreateGuid Lib "ole32" (ByRef GUID As Byte) As Long
 Private has_more As Boolean
 
 Public Sub SendToJoplin()
@@ -270,40 +270,40 @@ Private Function HttpRequest(sUrl As String, Optional sMethod As String = "GET",
 End Function
 
 Private Function HttpUpload(sUrl As String, sFileName As String, sPost As String) As String
-    ' upload file using XMLHTTP example from https://wqweto.wordpress.com/2011/07/12/vb6-using-wininet-to-post-binary-file/
-    Const STR_BOUNDARY As String = "SendToJoplin-HttpUpload-478624678463218"
-    Dim nFile As Integer
-    Dim baBuffer() As Byte
-    Dim sPostData As String
+    ' upload file based on XMLHTTP example from https://wqweto.wordpress.com/2011/07/12/vb6-using-wininet-to-post-binary-file/
+    Dim STR_BOUNDARY As String
+    STR_BOUNDARY = "SendToJoplin-" & NewGuid()
+    Dim fileNo As Integer
+    Dim baFileData() As Byte
     Dim sResponse As String
 
-    '--- read file
-    nFile = FreeFile
-    Open sFileName For Binary Access Read As nFile
-    If LOF(nFile) > 0 Then
-        ReDim baBuffer(0 To LOF(nFile) - 1) As Byte
-        Get nFile, , baBuffer
-        sPostData = StrConv(baBuffer, vbUnicode)
-        ReDim baBuffer(0) As Byte
+    ' read file
+    fileNo = FreeFile
+    Open sFileName For Binary Access Read As fileNo
+    If LOF(fileNo) > 0 Then
+        ReDim baFileData(0 To LOF(fileNo) - 1) As Byte
+        Get fileNo, , baFileData
     End If
-    Close nFile
-    '--- prepare body
-    sPostData = "--" & STR_BOUNDARY & vbCrLf & _
-        "Content-Disposition: form-data; name=""props""" & vbCrLf & vbCrLf & _
-        sPost & vbCrLf & _
-        "--" & STR_BOUNDARY & vbCrLf & _
-        "Content-Disposition: form-data; name=""data""; filename=""" & Mid$(sFileName, InStrRev(sFileName, "\") + 1) & """" & vbCrLf & _
-        "Content-Type: application/octet-stream" & vbCrLf & vbCrLf & _
-        sPostData & vbCrLf & _
-        "--" & STR_BOUNDARY & "--"
-     '--- post
-'     Debug.Print sPostData
-     With CreateObject("Msxml2.ServerXMLHTTP")
+    Close fileNo
+
+    ' upload file
+    With CreateObject("Msxml2.ServerXMLHTTP")
         .Open "POST", sUrl, False
         .setRequestHeader "Cache-Control", "no-cache"
         .setRequestHeader "Pragma", "no-cache"
         .setRequestHeader "Content-Type", "multipart/form-data; boundary=" & STR_BOUNDARY
-        .Send pvToByteArray(sPostData)
+        .Send CombineArrays( _
+            pvToByteArray( _
+                "--" & STR_BOUNDARY & vbCrLf & _
+                "Content-Disposition: form-data; name=""props""" & vbCrLf & vbCrLf & _
+                sPost & vbCrLf & _
+                "--" & STR_BOUNDARY & vbCrLf & _
+                "Content-Disposition: form-data; name=""data""; filename=""" & Mid(sFileName, InStrRev(sFileName, "\") + 1) & """" & vbCrLf & _
+                "Content-Type: application/octet-stream" & vbCrLf & vbCrLf _
+            ), _
+            baFileData, _
+            pvToByteArray(vbCrLf & "--" & STR_BOUNDARY & "--") _
+        )
         Do Until .ReadyState = 4: DoEvents: Loop
             sResponse = .ResponseText
     End With
@@ -311,8 +311,48 @@ Private Function HttpUpload(sUrl As String, sFileName As String, sPost As String
     HttpUpload = sResponse
 End Function
 
+Public Function CombineArrays(ParamArray arraysToMerge() As Variant) As Byte()
+    ' Adapted from https://stackoverflow.com/a/51407942/6199960
+    Dim CombinedArrayLength As Long
+    Dim i As Long, j As Long
+    
+    CombinedArrayLength = 0
+    For i = LBound(arraysToMerge) To UBound(arraysToMerge)
+        CombinedArrayLength = CombinedArrayLength + (UBound(arraysToMerge(i)) - LBound(arraysToMerge(i)) + 1)
+    Next i
+
+    Dim combinedArray() As Byte
+    ReDim combinedArray(0 To CombinedArrayLength - 1)
+
+    Dim combinedArrayIndex As Long
+    combinedArrayIndex = LBound(combinedArray)
+    For i = LBound(arraysToMerge) To UBound(arraysToMerge)
+        For j = LBound(arraysToMerge(i)) To UBound(arraysToMerge(i))
+            combinedArray(combinedArrayIndex) = arraysToMerge(i)(j)
+            combinedArrayIndex = combinedArrayIndex + 1
+        Next j
+    Next i
+'    Debug.Print StrConv(combinedArray, vbUnicode)
+    CombineArrays = combinedArray
+End Function
+
 Private Function pvToByteArray(sText As String) As Byte()
     pvToByteArray = StrConv(sText, vbFromUnicode)
+End Function
+
+Private Function NewGuid() As String
+    ' based on https://stackoverflow.com/a/23126614/6199960
+    Dim ID(0 To 15) As Byte
+    Dim N As Integer
+    Dim GUID As String
+    Dim Res As Long
+
+    Res = CoCreateGuid(ID(0))
+    For N = 0 To 15
+        GUID = GUID & Right("0" & Hex(ID(N)), 2)
+        If N = 3 Or N = 5 Or N = 7 Or N = 9 Then GUID = GUID & "-"
+    Next N
+    NewGuid = GUID
 End Function
 
 Private Function ToUnixTime(ByVal dt As Date) As LongLong
