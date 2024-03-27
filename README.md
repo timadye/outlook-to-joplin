@@ -1,8 +1,8 @@
 # Outlook Notes to Joplin
 
-This Outlook macro exports Outlook Notes, Mail, and Post to Joplin.
+This Outlook macro exports Outlook Notes, Mail, and Post with attachments to Joplin.
 
-It is based on [@ramisedhom's macro](https://gist.github.com/ramisedhom/0f34c5d6a8d73f0b98ac4bea2ec30be0) for exporting Outlook Mail, which was also independently [developed by @breisfeld](https://gist.github.com/breisfeld/af22feeab3ba0849a9fb6c7ab596992b).
+It was originally based on [@ramisedhom's macro](https://gist.github.com/ramisedhom/0f34c5d6a8d73f0b98ac4bea2ec30be0) for exporting Outlook Mail, which was also independently [developed by @breisfeld](https://gist.github.com/breisfeld/af22feeab3ba0849a9fb6c7ab596992b).
 
 ## Instructions
 
@@ -21,8 +21,8 @@ It is based on [@ramisedhom's macro](https://gist.github.com/ramisedhom/0f34c5d6
 13. Open the list of Notes in Outlook, and select one or more notes that you want to export to Joplin. Use Ctrl+A to select all notes.
 14. Run the Macro `Project1.ThisOutlookSession.SendToJoplin`. See the [instructions to run a macro in Outlook](https://support.microsoft.com/en-gb/office/run-a-macro-in-outlook-2e03e2e5-e637-4416-9ea0-2230151b0c31).
 15. When it is done, a message box will open saying how many notes were exported to Joplin.
-16. The notes will be in a Joplin workbook called `Outlook Notes`. Since Outlook notes are plain text, they will be imported as Markdown source. The `Created`, `Modified`, and `Categories` fields will be exported to Joplin `Created`, `Updated`, and `Tags` fields.
-17. The mail and post messages will be in a Joplin workbook called `Outlook Mail`. They will be imported as HTML or plain text.
+16. Notes will be in a Joplin workbook called `Outlook Notes`. Since Outlook notes are plain text, they will be imported as Markdown source. The `Created`, `Modified`, and `Categories` fields will be exported to Joplin `Created`, `Updated`, and `Tags` fields.
+17.  Mail and post messages will be in a Joplin workbook called `Outlook Mail`. They will be imported as HTML or plain text. Any attachments will be added as Joplin resources and referenced with an `Attachments:` header.
 
 ## Discussion
 
