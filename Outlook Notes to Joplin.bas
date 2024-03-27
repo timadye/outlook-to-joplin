@@ -41,9 +41,9 @@ Public Sub SendToJoplin()
             sAttachmentInfo = ImportAttachments(oItem, sUrl, sToken)
             sJSONString = HttpRequest(sUrl & "/notes?token=" & sToken, "POST", "{ " _
                             & """is_todo"": 0, ""title"": """ & EscapeBody(oItem.ConversationTopic) & """" _
+                            & ", ""parent_id"": """ & sMailFolderID & """" _
                             & ", ""user_created_time"": """ & ToUnixTime(oItem.CreationTime) & """" _
                             & ", ""user_updated_time"": """ & ToUnixTime(UpdateTime(oItem)) & """" _
-                            & ", ""parent_id"": """ & sMailFolderID & """" _
                             & ", """ & IIf(IsHtml(oItem), "body_html", "body") & """: """ & EscapeBody(MakeBody(oItem, sAttachmentInfo)) & """" _
                             & " }")
             sItemID = ParseJsonResponse(sJSONString, "id", "AddNote")
