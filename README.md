@@ -38,3 +38,4 @@ It was originally based on [@ramisedhom's macro](https://gist.github.com/ramised
 * 23/03/2024 use `html_body` in Joplin `POST`. Only include SMTP addresses in `From` field. Only include `From` if present.
 * 26/03/2024 upload attachments
 * 27/03/2024 keep uploaded file as a byte array. Use GUID in multipart boundary. Support Document Item.
+* 28/03/2024 don't fail on bad attachment file names.

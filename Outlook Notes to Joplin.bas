@@ -138,7 +138,8 @@ Private Function ImportAttachments(oItem As Object, sUrl As String, sToken As St
     sTemp = Environ("TEMP")
     For Each oAttachment In oItem.Attachments
         Dim sSaveFile As String
-        sSaveFile = sTemp & "\" & oAttachment.DisplayName
+        sSaveFile = sTemp & "\" & NewGuid()
+        If InStrRev(oAttachment.FileName, ".") > 0 Then sSaveFile = sSaveFile & Mid(oAttachment.FileName, InStrRev(oAttachment.FileName, "."))
         oAttachment.SaveAsFile sSaveFile
         sJSONString = HttpUpload(sUrl & "/resources?token=" & sToken, sSaveFile, "{ ""title"":""" & oAttachment.DisplayName & """ }")
         Kill sSaveFile
@@ -273,7 +274,7 @@ End Function
 
 Private Function HttpRequest(sUrl As String, Optional sMethod As String = "GET", Optional sPost As String = "") As String
     Dim sResponse As String
-    
+    Debug.Print sPost
     With CreateObject("Msxml2.ServerXMLHTTP")
         .Open sMethod, sUrl, False
         .setRequestHeader "Cache-Control", "no-cache"
