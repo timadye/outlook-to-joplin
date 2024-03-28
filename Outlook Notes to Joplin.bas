@@ -274,7 +274,7 @@ End Function
 
 Private Function HttpRequest(sUrl As String, Optional sMethod As String = "GET", Optional sPost As String = "") As String
     Dim sResponse As String
-    Debug.Print sPost
+    
     With CreateObject("Msxml2.ServerXMLHTTP")
         .Open sMethod, sUrl, False
         .setRequestHeader "Cache-Control", "no-cache"
